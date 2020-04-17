@@ -467,7 +467,8 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 							   "", // shout
 							 }
 
-	fmt.Printf("MOVE: COLOR=%s, Direction=%s, Elapsed=%dms\n", color, response.Move, time.Since(start).Milliseconds())
+	elapsed := time.Since(start)
+	fmt.Printf("MOVE: COLOR=%s, Direction=%s, Elapsed=%dms\n", color, response.Move, elapsed.Milliseconds())
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
