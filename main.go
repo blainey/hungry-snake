@@ -361,7 +361,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	var chosenMove = "left"
 	if numValidMoves > 0 {
 		mx := 0
-		tol := 4
+		tol := width/2
 		for i := 1; i < numValidMoves; i++ {
 			if !validMoves[i].risky &&
 			   (validMoves[i].dist == 0 || validMoves[i].dist < validMoves[mx].dist-tol ||
