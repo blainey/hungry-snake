@@ -1,0 +1,9 @@
+{
+  "name": "Hungry Snake",
+  "description": "A simple, greedy battlesnake that optimizes food collection.",
+  "repository": "https://github.com/blainey/hungry-snake",
+  "keywords": [
+    "battlesnake"
+  ]
+}
+
