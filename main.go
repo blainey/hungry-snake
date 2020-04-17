@@ -369,7 +369,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				mx = i
 			}
 		}
-		if mx == 0 {
+		if mx == 0 && validMoves[0].dist > 0 {
 			for i := 1; i < numValidMoves; i++ {
 				if !validMoves[i].risky &&
 				   (validMoves[i].sides < validMoves[mx].sides ||
