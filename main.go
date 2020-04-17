@@ -280,6 +280,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	
 	var chosenMove = "none"
 	var distToClosest = height + width
+	var riskyMove = "none"
 	for _,move := range moves {
 		var c = Translate(myHead,move.dx,move.dy)
 
@@ -318,6 +319,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 		if collide { 
 			//fmt.Printf("[Reject: would collide with other snake head]\n")
+                        riskyMove = move.label
 			continue 
 		}
 
@@ -351,9 +353,14 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if no good move, any will do ...
-	if chosenMove == "none" { 
-		//fmt.Printf("[Choose: left, suicide]\n")
-		chosenMove = "left" 
+	if chosenMove == "none" {
+		if riskyMove != "none" {
+			//fmt.Printf("[Choose: %s, risky]\n")
+			chosenMove = riskyMove
+		} else {
+			//fmt.Printf("[Choose: left, suicide]\n")
+			chosenMove = "left"
+		}
 	}
 
 	// Choose a random direction to move in
