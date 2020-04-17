@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"sync"
+	//"sync"
 )
 
 type Coord struct {
@@ -65,6 +65,7 @@ type EndRequest struct {
 	You   Snake `json:"you"`
 }
 
+/*
 type GameState struct {
 	SelfID string
 	Heads, Tails map[string]Coord
@@ -74,6 +75,7 @@ var games struct {
 	sync.RWMutex
 	m map[string]GameState
 }
+*/
 
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Your Battlesnake is alive!")
@@ -90,6 +92,10 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 	request := StartRequest{}
 	json.NewDecoder(r.Body).Decode(&request)
 
+/*
+        NOTE: this will not work when this snake is added multiple times to a game
+        Also game state not currently used so fix this if/when needed
+
 	var state GameState;
 	state.SelfID = request.You.ID
 	state.Heads = make(map[string]Coord)
@@ -104,6 +110,7 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 	games.Lock()
 	games.m[request.Game.ID] = state
 	games.Unlock()
+*/
 
 	response := StartResponse{
 		Color:    "#BF260A",
@@ -111,7 +118,7 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 		TailType: "skinny",
 	}
 
-	fmt.Print("START\n")
+	fmt.Print("START ID=%s\n", request.You.ID)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -145,9 +152,11 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("MOVEREQ: %+v\n", request)
 
+/*
 	games.RLock()
 	var state = games.m[request.Game.ID]
 	games.RUnlock()
+*/
 
 	// We create a local copy of the board where each cell
 	// contains a value that indicates what it contains 
@@ -208,7 +217,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	var myHead Coord
 	for _,snake := range request.Board.Snakes {
 		sx := 1
-		if snake.ID != state.SelfID {
+		if snake.ID != request.You.ID {
 			sx = ns
 			ns++
 		}
@@ -217,7 +226,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 		head := snake.Body[0]
 		grid[head.X][head.Y] = 3 * sx + 1
-		state.Heads[snake.ID] = head
+		//state.Heads[snake.ID] = head
 
 		sz := len(snake.Body)
 		for i := 1; i < sz-1; i++ {
@@ -227,16 +236,18 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 		tail := snake.Body[sz-1]
 		grid[tail.X][tail.Y] = 3 * sx + 2
-		state.Tails[snake.ID] = tail
+		//state.Tails[snake.ID] = tail
 
 		if sx == 1 {
 			myHead = head
 		}
 	}
 
+/*
 	games.Lock()
 	games.m[request.Game.ID] = state
 	games.Unlock()
+*/
 
 	// add food to board
 	type FoodVect struct {
@@ -365,9 +376,11 @@ func HandleEnd(w http.ResponseWriter, r *http.Request) {
 	request := EndRequest{}
 	json.NewDecoder(r.Body).Decode(&request)
 
+/*
 	games.Lock()
 	delete(games.m, request.Game.ID)
 	games.Unlock()
+*/
 
 	// Nothing to respond with here
 	fmt.Print("END\n")
@@ -379,7 +392,7 @@ func main() {
 		port = "8080"
 	}
 
-	games.m = make(map[string]GameState)
+	//games.m = make(map[string]GameState)
 
 	http.HandleFunc("/", HandleIndex)
 	http.HandleFunc("/ping", HandlePing)
