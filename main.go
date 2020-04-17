@@ -364,7 +364,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		tol := 4
 		for i := 1; i < numValidMoves; i++ {
 			if !validMoves[i].risky &&
-			   (validMoves[i].dist < validMoves[mx].dist-tol ||
+			   (validMoves[i].dist == 0 || validMoves[i].dist < validMoves[mx].dist-tol ||
 			    validMoves[mx].risky) {
 				mx = i
 			}
