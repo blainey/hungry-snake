@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Coord struct {
@@ -149,6 +150,8 @@ func Translate (a Coord, dx, dy int) Coord {
 // HandleMove is called for each turn of each game.
 // Valid responses are "up", "down", "left", or "right".
 func HandleMove(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	request := MoveRequest{}
 	json.NewDecoder(r.Body).Decode(&request)
 
@@ -464,7 +467,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 							   "", // shout
 							 }
 
-	fmt.Printf("MOVE: COLOR=%s, MOVE=%s\n", color, response.Move)
+	fmt.Printf("MOVE: COLOR=%s, Direction=%s, Elapsed=%dms\n", color, response.Move, time.Since(start).Milliseconds())
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
