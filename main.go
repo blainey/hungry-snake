@@ -157,7 +157,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	mySnakes.RUnlock()
 
 	color := state.Color
-	fmt.Printf("MOVE: COLOR=%s\n", color, request)
+	fmt.Printf("MOVE: COLOR=%s\n", color)
 
 	// We create a local copy of the board where each cell
 	// contains a value that indicates what it contains 
@@ -283,18 +283,16 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	for _,move := range moves {
 		var c = Translate(myHead,move.dx,move.dy)
 
-		fmt.Printf("[COLOR=%s, Consider %s]\n", color, move.label)
-
 		// Check if at boundary
 		if c.X < 0 || c.X >= width || c.Y < 0 || c.Y >= height {
-			fmt.Printf("[COLOR=%s, Reject: boundary]\n", color);
+			fmt.Printf("[COLOR=%s, Reject %s: boundary]\n", color, move.label);
 		    continue
 		}
 		
 		// Check if we will collide with another snake
 		var cdata = grid[c.X][c.Y]
 		if IsBody(cdata) || IsHead(cdata) {
-			fmt.Printf("[COLOR=%s, Reject: snake body or head]\n", color);
+			fmt.Printf("[COLOR=%s, Reject %s: snake body or head]\n", color, move.label);
 			continue
 		}
 
@@ -329,7 +327,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 		if vm[mx].sides == 3 {
 			numvm--
-			fmt.Printf("[COLOR=%s, Reject: moving into trap]\n", color);
+			fmt.Printf("[COLOR=%s, Reject %s: moving into trap]\n", color, move.label);
 			continue;
 		}
 
