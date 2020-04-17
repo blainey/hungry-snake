@@ -1,5 +1,6 @@
 module github.com/blainey/hungry-snake
 
+// +heroku goVersion go1.14
 go 1.13
 
 require (
