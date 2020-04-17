@@ -96,16 +96,13 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 		name	string
 		hexcode	string
 	} {
-		{ "brown", 	"#663300" },
-		{ "red",	"#cc0000" },
-		{ "violet",	"#cc0099" },
-		{ "tan",	"#996633" },
+		{ "red",	"#cc0000" },	
 		{ "blue",	"#0000cc" },
 		{ "green",	"#006600" },
+		{ "tan",	"#996633" },
 		{ "pink",	"#ff66ff" },
 		{ "yellow",	"#ffff00" },
-		{ "black",	"#000000" },
-		{ "purple",	"#660066" },
+		{ "violet",	"#cc0099" },
 	}  
 	
 	cx := atomic.AddUint32 (&colorPicker, 1) % (uint32)(len(colors))
