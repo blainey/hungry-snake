@@ -157,7 +157,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	mySnakes.RUnlock()
 
 	color := state.Color
-	fmt.Printf("MOVE: COLOR=%s\n", color)
+	fmt.Printf("MOVE: COLOR=%s, Turn=%d\n", color, request.Turn)
 
 	// We create a local copy of the board where each cell
 	// contains a value that indicates what it contains 
