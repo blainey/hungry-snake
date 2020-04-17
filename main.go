@@ -278,9 +278,15 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		{ "down",   0, +1 },
 	} 
 	
-	var chosenMove = "none"
-	var distToClosest = height + width
-	var riskyMove = "none"
+	type MoveOption struct {
+		label string
+		dist int
+		risky bool
+		sides int
+	} 
+
+	validMoves := make([]MoveOption,4)
+	numValidMoves := 0
 	for _,move := range moves {
 		var c = Translate(myHead,move.dx,move.dy)
 
@@ -301,67 +307,79 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 		// Cell will be empty next turn but check if
 		// we would colliude with a snake if we moved there
-		var collide = false
+		mx := numValidMoves
+		numValidMoves++
+		validMoves[mx].label = move.label
+		validMoves[mx].sides = 0
+		validMoves[mx].risky = false
+
 		for _,adj := range moves {
 			ac := Translate(c,adj.dx,adj.dy)
-			if ac.X < 0 || ac.X >= width || 
-			   ac.Y < 0 || ac.Y >= height {
-				continue
-			}
+
 			if ac.X == myHead.X && ac.Y == myHead.Y {
 				continue
 			}
-			if IsHead(grid[ac.X][ac.Y]) {
-				collide = true; 
-				break
+
+			if ac.X < 0 || ac.X >= width || 
+			   ac.Y < 0 || ac.Y >= height {
+				validMoves[mx].sides++
+				continue
+			}
+
+			adata := grid[ac.X][ac.Y]
+			if IsHead(adata) {
+				validMoves[mx].risky = true; 
+			} else if IsBody(adata) {
+				validMoves[mx].sides++
 			}
 		}
 
-		if collide { 
-			//fmt.Printf("[Reject: would collide with other snake head]\n")
-                        riskyMove = move.label
-			continue 
+		if validMoves[mx].sides == 3 {
+			numValidMoves--
+			continue;
 		}
 
 		if IsFood(cdata) {
-			//fmt.Printf("[Choose: contains food]\n")
-			chosenMove = move.label
-			break
+			validMoves[mx].dist = 0
+			continue
 		}
 
-		// Cell will be empty next turn, so choose it if 
-		// its the only option, or if it moves us closer to 
-		// the closest food
+		// Compute distance to closest food
+		validMoves[mx].dist = height + width
 		for _,food := range fv {
 			distToHere := ManDist(food.pos,myHead)
-			if (distToHere > distToClosest) { break }
-
 			distToNew := ManDist(food.pos,c)
-			if distToNew < distToHere && 
-			   distToNew < distToClosest {
-				distToClosest = distToNew
-				chosenMove = move.label
+			if distToNew < distToHere {
+				validMoves[mx].dist = distToNew 
 				//fmt.Printf("[Tentative: moves closer to food]\n")
 				break
 			}
 		}
-
-		if chosenMove == "none" {
-			//fmt.Printf("[Tentative: default]\n")
-			chosenMove = move.label
-		}
 	}
 
-	// if no good move, any will do ...
-	if chosenMove == "none" {
-		if riskyMove != "none" {
-			//fmt.Printf("[Choose: %s, risky]\n")
-			chosenMove = riskyMove
-		} else {
-			//fmt.Printf("[Choose: left, suicide]\n")
-			chosenMove = "left"
+	// Choose among valid moves
+	var chosenMove = "left"
+	if numValidMoves > 0 {
+		mx := 0
+		tol := 4
+		for i := 1; i < numValidMoves; i++ {
+			if !validMoves[i].risky &&
+			   (validMoves[i].dist < validMoves[mx].dist-tol ||
+			    validMoves[mx].risky) {
+				mx = i
+			}
 		}
-	}
+		if mx == 0 {
+			for i := 1; i < numValidMoves; i++ {
+				if !validMoves[i].risky &&
+				   (validMoves[i].sides < validMoves[mx].sides ||
+					validMoves[mx].risky) {
+					mx = i
+				}
+			}
+		}
+		chosenMove = validMoves[mx].label
+	} 
 
 	// Choose a random direction to move in
 	//possibleMoves := []string{"up", "down", "left", "right"}
