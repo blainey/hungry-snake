@@ -121,7 +121,7 @@ func HandleStart(w http.ResponseWriter, r *http.Request) {
 	mySnakes.m[request.You.ID] = state
 	mySnakes.Unlock()
 
-	fmt.Print("START ID=%s, COLOR=%s\n", request.You.ID, state.Color)
+	fmt.Print("START: COLOR=%s\n", state.Color)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -157,7 +157,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	mySnakes.RUnlock()
 
 	color := state.Color
-	fmt.Printf("MOVEREQ: COLOR=%s, %+v\n", color, request)
+	fmt.Printf("MOVE: COLOR=%s\n", color, request)
 
 	// We create a local copy of the board where each cell
 	// contains a value that indicates what it contains 
@@ -278,33 +278,33 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		sides int
 	} 
 
-	validMoves := make([]MoveOption,4)
-	numValidMoves := 0
+	vm := make([]MoveOption,4)
+	numvm := 0
 	for _,move := range moves {
 		var c = Translate(myHead,move.dx,move.dy)
 
-		//fmt.Printf("[COLOR=%s, Consider %s]\n", color, move.label)
+		fmt.Printf("[COLOR=%s, Consider %s]\n", color, move.label)
 
 		// Check if at boundary
 		if c.X < 0 || c.X >= width || c.Y < 0 || c.Y >= height {
-			//fmt.Printf("[COLOR=%s, Reject: boundary]\n", color);
+			fmt.Printf("[COLOR=%s, Reject: boundary]\n", color);
 		    continue
 		}
 		
 		// Check if we will collide with another snake
 		var cdata = grid[c.X][c.Y]
 		if IsBody(cdata) || IsHead(cdata) {
-			//fmt.Printf("[COLOR=%s, Reject: snake body or head]\n", color);
+			fmt.Printf("[COLOR=%s, Reject: snake body or head]\n", color);
 			continue
 		}
 
 		// Cell will be empty next turn but check if
 		// we would colliude with a snake if we moved there
-		mx := numValidMoves
-		numValidMoves++
-		validMoves[mx].label = move.label
-		validMoves[mx].sides = 0
-		validMoves[mx].risky = false
+		mx := numvm
+		numvm++
+		vm[mx].label = move.label
+		vm[mx].sides = 0
+		vm[mx].risky = false
 
 		for _,adj := range moves {
 			ac := Translate(c,adj.dx,adj.dy)
@@ -315,36 +315,36 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 			if ac.X < 0 || ac.X >= width || 
 			   ac.Y < 0 || ac.Y >= height {
-				validMoves[mx].sides++
+				vm[mx].sides++
 				continue
 			}
 
 			adata := grid[ac.X][ac.Y]
 			if IsHead(adata) {
-				validMoves[mx].risky = true; 
+				vm[mx].risky = true; 
 			} else if IsBody(adata) {
-				validMoves[mx].sides++
+				vm[mx].sides++
 			}
 		}
 
-		if validMoves[mx].sides == 3 {
-			numValidMoves--
+		if vm[mx].sides == 3 {
+			numvm--
+			fmt.Printf("[COLOR=%s, Reject: moving into trap]\n", color);
 			continue;
 		}
 
 		if IsFood(cdata) {
-			validMoves[mx].dist = 0
+			vm[mx].dist = 0
 			continue
 		}
 
 		// Compute distance to closest food
-		validMoves[mx].dist = height + width
+		vm[mx].dist = height + width
 		for _,food := range fv {
 			distToHere := ManDist(food.pos,myHead)
 			distToNew := ManDist(food.pos,c)
 			if distToNew < distToHere {
-				validMoves[mx].dist = distToNew 
-				//fmt.Printf("[COLOR=%s, Tentative: moves closer to food]\n", color)
+				vm[mx].dist = distToNew 
 				break
 			}
 		}
@@ -352,33 +352,121 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 	// Choose among valid moves
 	var chosenMove = "left"
-	if numValidMoves > 0 {
-		mx := 0
-		tol := width/2
-		for i := 1; i < numValidMoves; i++ {
-			if !validMoves[i].risky &&
-			   (validMoves[i].dist == 0 || validMoves[i].dist < validMoves[mx].dist-tol ||
-			    validMoves[mx].risky) {
-				mx = i
+	switch numvm {
+	case 0:
+		chosenMove = "left"
+		fmt.Printf("[COLOR=%s, No valid moves, suicide: %s]\n", color, chosenMove);
+	case 1:
+		chosenMove = vm[0].label
+		fmt.Printf("[COLOR=%s, Only one valid move: %s]\n", color, chosenMove);
+	case 2:
+		// if both moves are risky, pick the one with fewer sides
+		if vm[0].risky && vm[1].risky {
+			if vm[0].sides < vm[1].sides {
+				chosenMove = vm[0].label
+			} else {
+				chosenMove = vm[1].label
 			}
-		}
-		if mx == 0 && validMoves[0].dist > 0 {
-			for i := 1; i < numValidMoves; i++ {
-				if !validMoves[i].risky &&
-				   (validMoves[i].sides < validMoves[mx].sides ||
-					validMoves[mx].risky) {
-					mx = i
+			fmt.Printf("[COLOR=%s, Two moves, both risky.  Choose one with fewer sides: %s]\n", color, chosenMove);
+		} else {
+			// if one is risky, pick the other
+			if (vm[0].risky) {
+				chosenMove = vm[1].label
+				fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
+			} else if vm[1].risky {
+				chosenMove = vm[0].label
+				fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
+			} else {
+				// if one has food, choose that one
+				if vm[0].dist == 0 {
+					chosenMove = vm[0].label
+					fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
+				} else if vm[1].dist == 0 {
+					chosenMove = vm[1].label
+					fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
+				} else {
+					// if one has fewer sides, choose it
+					if vm[0].sides < vm[1].sides {
+						chosenMove = vm[0].label
+						fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+					} else if vm[1].sides < vm[0].sides {
+						chosenMove = vm[1].label
+						fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+					} else {
+						// choose the one with smaller dist
+						if vm[0].dist < vm[1].dist {
+							chosenMove = vm[0].label
+							fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+						} else {
+							chosenMove = vm[1].label
+							fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+						}
+					}
 				}
 			}
 		}
-		chosenMove = validMoves[mx].label
+	case 3:
+		// if all moves risky, choose the one with the fewest sides
+		if vm[0].risky && vm[1].risky && vm[2].risky {
+			least := 0
+			if (vm[1].sides < vm[least].sides) { least = 1 }
+			if (vm[2].sides < vm[least].sides) { least = 2 }
+			chosenMove = vm[least].label
+			fmt.Printf("[COLOR=%s, Three moves, all risky.  Choose one with fewest sides: %s]\n", color, chosenMove);
+		} else {
+			// if two are risky, choose the other one
+			if vm[0].risky && vm[1].risky {
+				chosenMove = vm[2].label
+				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
+			} else if vm[0].risky && vm[2].risky {
+				chosenMove = vm[1].label
+				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
+			} else if vm[1].risky && vm[2].risky {
+				chosenMove = vm[0].label
+				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
+			} else {
+				// if one has food, pick that one
+				if vm[0].dist == 0 && !vm[0].risky {
+					chosenMove = vm[0].label
+					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
+				} else if vm[1].dist == 0 && !vm[1].risky {
+					chosenMove = vm[1].label
+					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
+				} else if vm[2].dist == 0 && !vm[2].risky {
+					chosenMove = vm[2].label
+					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
+				} else {
+					// if all have same number of sides, then choose the non-risky one with smallest dist
+					if vm[0].sides == vm[1].sides && vm[1].sides == vm[2].sides {
+						least := 0
+						if vm[0].risky {
+							least = 1
+						}
+						if (vm[1].dist < vm[least].dist && !vm[1].risky) { least = 1 }
+						if (vm[2].dist < vm[least].dist && !vm[2].risky) { least = 2 }
+						chosenMove = vm[least].label
+						fmt.Printf("[COLOR=%s, Three moves, pick non-risky one with least dist: %s]\n", color, chosenMove);
+					} else {
+						// choose the non-risky one with least number of sides
+						least := 0
+						if vm[0].risky {
+							least = 1
+						}
+						if (vm[1].sides < vm[least].sides && !vm[1].risky) { least = 1 }
+						if (vm[2].sides < vm[least].sides && !vm[2].risky) { least = 2 }
+						chosenMove = vm[least].label
+						fmt.Printf("[COLOR=%s, Three moves, pick non-risky one with least sides: %s]\n", color, chosenMove);
+					}
+				}
+			}
+		}
 	} 
 
 	response := MoveResponse { chosenMove,
 							   "", // shout
 							 }
 
-	fmt.Printf("MOVE: %s, COLOR=%s\n", response.Move, color)
+	fmt.Printf("MOVE: COLOR=%s, MOVE=%s\n", color, response.Move)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
