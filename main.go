@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	//"sync"
+	"sync"
+	"sync/atomic"
 )
 
 type Coord struct {
@@ -65,18 +66,6 @@ type EndRequest struct {
 	You   Snake `json:"you"`
 }
 
-/*
-type GameState struct {
-	SelfID string
-	Heads, Tails map[string]Coord
-}
-
-var games struct {
-	sync.RWMutex
-	m map[string]GameState
-}
-*/
-
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Your Battlesnake is alive!")
 }
@@ -85,40 +74,57 @@ func HandlePing(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "pong")
 }
 
+var colorPicker uint32
+
+type SnakeState struct {
+	SelfID string
+	Color  string
+}
+
+var mySnakes struct {
+	sync.RWMutex
+	m map[string]SnakeState
+}
+
 // HandleStart is called at the start of each game your Battlesnake is playing.
 // The StartRequest object contains information about the game that's about to start.
-// TODO: Use this function to decide how your Battlesnake is going to look on the board.
 func HandleStart(w http.ResponseWriter, r *http.Request) {
 	request := StartRequest{}
 	json.NewDecoder(r.Body).Decode(&request)
 
-/*
-        NOTE: this will not work when this snake is added multiple times to a game
-        Also game state not currently used so fix this if/when needed
-
-	var state GameState;
-	state.SelfID = request.You.ID
-	state.Heads = make(map[string]Coord)
-	state.Tails = make(map[string]Coord)
-
-	// store snake head/tail locations
-	for _,snake := range request.Board.Snakes {
-		state.Heads[snake.ID] = snake.Body[0]
-		state.Tails[snake.ID] = snake.Body[0]
-	}
-
-	games.Lock()
-	games.m[request.Game.ID] = state
-	games.Unlock()
-*/
+	var colors = []struct {
+		name	string
+		hexcode	string
+	} {
+		{ "brown", 	"#663300" },
+		{ "red",	"#cc0000" },
+		{ "violet",	"#cc0099" },
+		{ "tan",	"#996633" },
+		{ "blue",	"#0000cc" },
+		{ "green",	"#006600" },
+		{ "pink",	"#ff66ff" },
+		{ "yellow",	"#ffff00" },
+		{ "black",	"#000000" },
+		{ "purple",	"#660066" },
+	}  
+	
+	cx := atomic.AddUint32 (&colorPicker, 1) % (uint32)(len(colors))
 
 	response := StartResponse{
-		Color:    "#BF260A",
+		Color:    colors[cx].hexcode,
 		HeadType: "bendr",
 		TailType: "skinny",
 	}
 
-	fmt.Print("START ID=%s\n", request.You.ID)
+	var state SnakeState;
+	state.SelfID = request.You.ID
+	state.Color = colors[cx].name
+
+	mySnakes.Lock()
+	mySnakes.m[request.You.ID] = state
+	mySnakes.Unlock()
+
+	fmt.Print("START ID=%s, COLOR=%s\n", request.You.ID, state.Color)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -145,18 +151,16 @@ func Translate (a Coord, dx, dy int) Coord {
 
 // HandleMove is called for each turn of each game.
 // Valid responses are "up", "down", "left", or "right".
-// TODO: Use the information in the MoveRequest object to determine your next move.
 func HandleMove(w http.ResponseWriter, r *http.Request) {
 	request := MoveRequest{}
 	json.NewDecoder(r.Body).Decode(&request)
 
-	fmt.Printf("MOVEREQ: %+v\n", request)
+	mySnakes.RLock()
+	var state = mySnakes.m[request.You.ID]
+	mySnakes.RUnlock()
 
-/*
-	games.RLock()
-	var state = games.m[request.Game.ID]
-	games.RUnlock()
-*/
+	color := state.Color
+	fmt.Printf("MOVEREQ: COLOR=%s, %+v\n", color, request)
 
 	// We create a local copy of the board where each cell
 	// contains a value that indicates what it contains 
@@ -226,7 +230,6 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 		head := snake.Body[0]
 		grid[head.X][head.Y] = 3 * sx + 1
-		//state.Heads[snake.ID] = head
 
 		sz := len(snake.Body)
 		for i := 1; i < sz-1; i++ {
@@ -236,18 +239,11 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 		tail := snake.Body[sz-1]
 		grid[tail.X][tail.Y] = 3 * sx + 2
-		//state.Tails[snake.ID] = tail
 
 		if sx == 1 {
 			myHead = head
 		}
 	}
-
-/*
-	games.Lock()
-	games.m[request.Game.ID] = state
-	games.Unlock()
-*/
 
 	// add food to board
 	type FoodVect struct {
@@ -290,18 +286,18 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	for _,move := range moves {
 		var c = Translate(myHead,move.dx,move.dy)
 
-		//fmt.Printf("[Consider %s]\n", move.label)
+		//fmt.Printf("[COLOR=%s, Consider %s]\n", color, move.label)
 
 		// Check if at boundary
 		if c.X < 0 || c.X >= width || c.Y < 0 || c.Y >= height {
-			//fmt.Printf("[Reject: boundary]\n");
+			//fmt.Printf("[COLOR=%s, Reject: boundary]\n", color);
 		    continue
 		}
 		
 		// Check if we will collide with another snake
 		var cdata = grid[c.X][c.Y]
 		if IsBody(cdata) || IsHead(cdata) {
-			//fmt.Printf("[Reject: snake body or head]\n");
+			//fmt.Printf("[COLOR=%s, Reject: snake body or head]\n", color);
 			continue
 		}
 
@@ -351,7 +347,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			distToNew := ManDist(food.pos,c)
 			if distToNew < distToHere {
 				validMoves[mx].dist = distToNew 
-				//fmt.Printf("[Tentative: moves closer to food]\n")
+				//fmt.Printf("[COLOR=%s, Tentative: moves closer to food]\n", color)
 				break
 			}
 		}
@@ -381,15 +377,11 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		chosenMove = validMoves[mx].label
 	} 
 
-	// Choose a random direction to move in
-	//possibleMoves := []string{"up", "down", "left", "right"}
-	//move := possibleMoves[rand.Intn(len(possibleMoves))]
-
 	response := MoveResponse { chosenMove,
 							   "", // shout
 							 }
 
-	fmt.Printf("MOVE: %s\n", response.Move)
+	fmt.Printf("MOVE: %s, COLOR=%s\n", response.Move, color)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -400,12 +392,6 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 func HandleEnd(w http.ResponseWriter, r *http.Request) {
 	request := EndRequest{}
 	json.NewDecoder(r.Body).Decode(&request)
-
-/*
-	games.Lock()
-	delete(games.m, request.Game.ID)
-	games.Unlock()
-*/
 
 	// Nothing to respond with here
 	fmt.Print("END\n")
