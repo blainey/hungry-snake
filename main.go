@@ -400,7 +400,7 @@ func main() {
 		port = "8080"
 	}
 
-	//games.m = make(map[string]GameState)
+	mySnakes.m = make(map[string]SnakeState)
 
 	http.HandleFunc("/", HandleIndex)
 	http.HandleFunc("/ping", HandlePing)
