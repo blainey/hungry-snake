@@ -434,8 +434,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-	case 3:
-	case 4:
+	default:
 		// if all moves risky, choose the one with the fewest sides
 		if vm[0].risky && vm[1].risky && vm[2].risky {
 			least := 0
