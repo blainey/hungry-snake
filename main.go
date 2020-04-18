@@ -360,6 +360,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 
 	// Choose among valid moves
 	var chosenMove = "left"
+	fmt.Printf("[COLOR=%s, Consider %d valid moves\n", color, numvm)
 	switch numvm {
 	case 0:
 		chosenMove = "left"
