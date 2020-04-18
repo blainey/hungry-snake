@@ -407,17 +407,17 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 							if vm[0].sides < vm[1].sides {
 								chosenMove = vm[0].label
 								fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-							} else if vm[1].sides < vm[0].sides {
+							} else {
 								chosenMove = vm[1].label
 								fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
 							}
 						}
 					} else {
-						// if one has fewer sides, choose it
-						if vm[0].sides < vm[1].sides {
+						// if one has 2 sides, choose the other one
+						if vm[1].sides == 2 {
 							chosenMove = vm[0].label
 							fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-						} else if vm[1].sides < vm[0].sides {
+						} else if vm[0].sides == 2 {
 							chosenMove = vm[1].label
 							fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
 						} else {
@@ -484,8 +484,9 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 							fmt.Printf("[COLOR=%s, Three moves, low health, pick non-risky one with least dist: %s]\n", color, chosenMove);
 						}
 					} else {
-						// if all have same number of sides, then choose the non-risky one with smallest dist
-						if vm[0].sides == vm[1].sides && vm[1].sides == vm[2].sides {
+						// if all have equal sides, or none have more than 1, then choose the non-risky one with smallest dist
+						if vm[0].sides == vm[1].sides && vm[1].sides == vm[2].sides ||
+						   vm[0].sides < 2 && vm[1].sides < 2 && vm[2].sides < 2 {
 							least := 0
 							if vm[0].risky { least = 1 }
 							if (vm[1].dist < vm[least].dist && !vm[1].risky) { least = 1 }
