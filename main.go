@@ -517,6 +517,9 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 					chosenMove = vm[0].label
 					fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
 				} else {
+					// FORCE the checks below to seek food (can reverse later if needed)
+					criticalHealth = true
+
 					// if one has food, choose that one
 					// but only if sides < 2 or criticalHealth
 					// note exception is when the cell is one of the corners
@@ -615,6 +618,9 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 					} else { chosenMove = vm[0].label }
 					fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
 				} else {
+					// FORCE the checks below to seek food (can reverse later if needed)
+					criticalHealth = true
+
 					// if one has food, pick that one
 					if vm[0].dist == 0 && !vm[0].risky && (criticalHealth || vm[0].sides < 2 || vm[0].corner) {
 						chosenMove = vm[0].label
