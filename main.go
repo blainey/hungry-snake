@@ -370,6 +370,48 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			return count
 		}
 
+		var SelfBounded func (Coord) bool
+		SelfBounded = func (s Coord) bool {
+			_, alreadyFilled := filled[s]
+			if alreadyFilled { return true }
+
+			filled[s] = true
+
+			west := Translate(s,-1,0)
+			if west.X >= 0 {
+				c := grid[west.X][west.Y]
+				if IsSpace(c) {
+					if !SelfBounded(west) { return false }
+				} else if !IsSelf(c) { return false }
+			} 
+
+			north := Translate(s,0,-1)
+			if north.Y >= 0 {
+				c := grid[north.X][north.Y]
+				if IsSpace(c) {
+					if !SelfBounded(north) { return false }
+				} else if !IsSelf(c) { return false; }
+			}
+
+			east := Translate(s,+1,0)
+			if east.X < width {
+				c := grid[east.X][east.Y]
+				if IsSpace(c) {
+					if !SelfBounded(east) { return false }
+				} else if !IsSelf(c) { return false }
+			}
+
+			south := Translate(s,0,+1)
+			if south.Y < height {
+				c := grid[south.X][south.Y]
+				if IsSpace(c) {
+					if !SelfBounded(south) { return false }
+				} else if !IsSelf(c) { return false }
+			}
+
+			return true
+		}
+
 		if vm[mx].sides == 3 {
 			numvm--
 			fmt.Printf("[COLOR=%s, Reject %s: moving into trap]\n", color, move.label);
@@ -378,9 +420,16 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			// determine if we would be entering a closed region whose number of tiles
 			// is smaller than the current snake length
 			if FillArea(c) <= len(request.You.Body) {
-				numvm--
-				fmt.Printf("[COLOR=$s, Reject %s: moving into a trap]\n", color, move.label)
-				continue
+				for k := range filled {
+					delete(filled,k)
+				}
+				if (SelfBounded(c)) {
+					numvm--
+					fmt.Printf("[COLOR=$s, Reject %s: moving into a trap]\n", color, move.label)
+					continue
+				} else {
+					vm[mx].risky = true
+				}
 			}
 		}
 
