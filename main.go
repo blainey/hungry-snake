@@ -337,6 +337,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if IsFood(cdata) {
+			fmt.Printf("[COLOR=%s, Food at %s]\n", color, move.label);
 			vm[mx].dist = 0
 			continue
 		}
@@ -351,6 +352,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
+		fmt.Printf("[COLOR=%s, Dist to closest food is %d]\n", color, vm[mx].dist);
 	}
 
 	lowHealth := request.You.Health < fv[len(fv)-1].dist
