@@ -196,13 +196,13 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	IsHead := func (c int) bool {
 		return c > 2 && c%3 == 1
 	}
-	/*
 	IsTail := func (c int) bool {
 		return c > 2 && c%3 == 2
 	}
 	IsSelf := func (c int) bool {
 		return c/3 == 1
 	}
+	/*
 	SnakeNo := func (c int) int {
 		return c/3
 	}
@@ -296,7 +296,8 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		
 		// Check if we will collide with another snake
 		var cdata = grid[c.X][c.Y]
-		if IsBody(cdata) || IsHead(cdata) {
+		if IsBody(cdata) || IsHead(cdata) ||
+		   (IsSelf{cdata) && IsTail(cdata)) {
 			fmt.Printf("[COLOR=%s, Reject %s: snake body or head]\n", color, move.label);
 			continue
 		}
@@ -433,6 +434,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	case 3:
+	case 4:
 		// if all moves risky, choose the one with the fewest sides
 		if vm[0].risky && vm[1].risky && vm[2].risky {
 			least := 0
