@@ -374,7 +374,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			numvm--
 			fmt.Printf("[COLOR=%s, Reject %s: moving into trap]\n", color, move.label);
 			continue;
-		} else if vm[mx].sides == 2 {
+		} else if vm[mx].sides > 0 {
 			// determine if we would be entering a closed region whose number of tiles
 			// is smaller than the current snake length
 			if FillArea(c) <= len(request.You.Body) {
