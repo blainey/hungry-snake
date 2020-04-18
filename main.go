@@ -282,6 +282,8 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		dist int
 		risky bool
 		sides int
+		trap bool
+		region int
 	} 
 
 	vm := make([]MoveOption,4)
@@ -312,6 +314,8 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		vm[mx].label = move.label
 		vm[mx].sides = 0
 		vm[mx].risky = IsTail(cdata)
+		vm[mx].trap = false
+		vm[mx].region = 0
 
 		for _,adj := range moves {
 			ac := Translate(c,adj.dx,adj.dy)
@@ -419,16 +423,19 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		} else if vm[mx].sides > 0 {
 			// determine if we would be entering a closed region whose number of tiles
 			// is smaller than the current snake length
-			if FillArea(c) <= len(request.You.Body) {
+			area := FillArea(c)
+			if area <= len(request.You.Body) {
+				fmt.Printf("[COLOR=$s, Bounded region of size %d]\n", color, area)
+				vm[mx].trap = true
+				vm[mx].risky = true
 				for k := range filled {
 					delete(filled,k)
 				}
+				vm[mx].risky = true
 				if (SelfBounded(c)) {
-					numvm--
-					fmt.Printf("[COLOR=$s, Reject %s: moving into a trap]\n", color, move.label)
-					continue
+					vm[mx].region = -area
 				} else {
-					vm[mx].risky = true
+					vm[mx].region = area
 				}
 			}
 		}
@@ -461,71 +468,93 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	switch numvm {
 	case 0:
 		chosenMove = "left"
-		fmt.Printf("[COLOR=%s, No valid moves, suicide: %s]\n", color, chosenMove);
+		fmt.Printf("[COLOR=%s, No valid moves, suicide: %s]\n", color, chosenMove)
 	case 1:
 		chosenMove = vm[0].label
-		fmt.Printf("[COLOR=%s, Only one valid move: %s]\n", color, chosenMove);
+		fmt.Printf("[COLOR=%s, Only one valid move: %s]\n", color, chosenMove)
 	case 2:
-		// if both moves are risky, pick the one with fewer sides
-		if vm[0].risky && vm[1].risky {
-			if vm[0].sides < vm[1].sides {
+		// if both moves are traps, pick the one with the best chance of escape
+		if vm[0].trap && vm[1].trap {
+			if vm[0].region > 0 {
+				if vm[1].region < vm[0].region { 
+					chosenMove = vm[0].label
+				} else {
+					chosenMove = vm[1].label
+				}
+			} else if vm[1].region > 0 {
+				chosenMove = vm[1].label
+			} else if vm[0].region < vm[1].region {
 				chosenMove = vm[0].label
 			} else {
 				chosenMove = vm[1].label
 			}
-			fmt.Printf("[COLOR=%s, Two moves, both risky.  Choose one with fewer sides: %s]\n", color, chosenMove);
+			fmt.Printf("[COLOR=%s, Two moves, both traps, pick one with greater chance: %s]\n", color, chosenMove)
+		} else if vm[0].trap {
+			chosenMove = vm[1].label
+		} else if vm[1].trap {
+			chosenMove = vm[0].label
 		} else {
-			// if one is risky, pick the other
-			if (vm[0].risky) {
-				chosenMove = vm[1].label
-				fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
-			} else if vm[1].risky {
-				chosenMove = vm[0].label
-				fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
-			} else {
-				// if one has food, choose that one
-				// but only if sides < 2 or criticalHealth
-				if vm[0].dist == 0 && (criticalHealth || vm[0].sides < 2) {
+			// if both moves are risky, pick the one with fewer sides
+			if vm[0].risky && vm[1].risky {
+				if vm[0].sides < vm[1].sides {
 					chosenMove = vm[0].label
-					fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
-				} else if vm[1].dist == 0 && (criticalHealth || vm[1].sides < 2) {
-					chosenMove = vm[1].label
-					fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
 				} else {
-					if (lowHealth) {
-						// chooose the one with smaller dist
-						if vm[0].dist < vm[1].dist {
-							chosenMove = vm[0].label
-							fmt.Printf("[COLOR=%s, Two moves, low health, one has lower dist.  Choose it: %s]\n", color, chosenMove);
-						} else if vm[1].dist < vm[0].dist {
-							chosenMove = vm[1].label
-							fmt.Printf("[COLOR=%s, Two moves, low health, one has lower dist.  Choose it: %s]\n", color, chosenMove);
-						} else {
-							// choose the one with fewer sides
-							if vm[0].sides < vm[1].sides {
-								chosenMove = vm[0].label
-								fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-							} else {
-								chosenMove = vm[1].label
-								fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-							}
-						}
+					chosenMove = vm[1].label
+				}
+				fmt.Printf("[COLOR=%s, Two moves, both risky.  Choose one with fewer sides: %s]\n", color, chosenMove);
+			} else {
+				// if one is risky, pick the other
+				if (vm[0].risky) {
+					chosenMove = vm[1].label
+					fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
+				} else if vm[1].risky {
+					chosenMove = vm[0].label
+					fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
+				} else {
+					// if one has food, choose that one
+					// but only if sides < 2 or criticalHealth
+					if vm[0].dist == 0 && (criticalHealth || vm[0].sides < 2) {
+						chosenMove = vm[0].label
+						fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
+					} else if vm[1].dist == 0 && (criticalHealth || vm[1].sides < 2) {
+						chosenMove = vm[1].label
+						fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
 					} else {
-						// if one has 2 sides, choose the other one
-						if vm[1].sides == 2 {
-							chosenMove = vm[0].label
-							fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-						} else if vm[0].sides == 2 {
-							chosenMove = vm[1].label
-							fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-						} else {
-							// choose the one with smaller dist
+						if (lowHealth) {
+							// chooose the one with smaller dist
 							if vm[0].dist < vm[1].dist {
 								chosenMove = vm[0].label
-								fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
-							} else {
+								fmt.Printf("[COLOR=%s, Two moves, low health, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+							} else if vm[1].dist < vm[0].dist {
 								chosenMove = vm[1].label
-								fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+								fmt.Printf("[COLOR=%s, Two moves, low health, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+							} else {
+								// choose the one with fewer sides
+								if vm[0].sides < vm[1].sides {
+									chosenMove = vm[0].label
+									fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+								} else {
+									chosenMove = vm[1].label
+									fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+								}
+							}
+						} else {
+							// if one has 2 sides, choose the other one
+							if vm[1].sides == 2 {
+								chosenMove = vm[0].label
+								fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+							} else if vm[0].sides == 2 {
+								chosenMove = vm[1].label
+								fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+							} else {
+								// choose the one with smaller dist
+								if vm[0].dist < vm[1].dist {
+									chosenMove = vm[0].label
+									fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+								} else {
+									chosenMove = vm[1].label
+									fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+								}
 							}
 						}
 					}
@@ -533,23 +562,33 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	default:
+		// could be one trap move - make sure it is not selected
+		// note that trap moves are also flagged as risky
+
 		// if all moves risky, choose the one with the fewest sides
 		if vm[0].risky && vm[1].risky && vm[2].risky {
 			least := 0
-			if (vm[1].sides < vm[least].sides) { least = 1 }
-			if (vm[2].sides < vm[least].sides) { least = 2 }
+			if (vm[0].trap) { least = 1 }
+			if (vm[1].sides < vm[least].sides && !vm[1].trap) { least = 1 }
+			if (vm[2].sides < vm[least].sides && !vm[2].trap) { least = 2 }
 			chosenMove = vm[least].label
 			fmt.Printf("[COLOR=%s, Three moves, all risky.  Choose one with fewest sides: %s]\n", color, chosenMove);
 		} else {
-			// if two are risky, choose the other one
+			// if two are risky, choose the other one unless its a trap
 			if vm[0].risky && vm[1].risky {
-				chosenMove = vm[2].label
+				if vm[2].trap { 
+					chosenMove = vm[0].label 
+				} else { chosenMove = vm[2].label }
 				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
 			} else if vm[0].risky && vm[2].risky {
-				chosenMove = vm[1].label
+				if vm[1].trap { 
+					chosenMove = vm[0].label 
+				} else { chosenMove = vm[1].label }
 				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
 			} else if vm[1].risky && vm[2].risky {
-				chosenMove = vm[0].label
+				if vm[0].trap { 
+					chosenMove = vm[1].label 
+				} else { chosenMove = vm[0].label }
 				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
 			} else {
 				// if one has food, pick that one
