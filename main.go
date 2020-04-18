@@ -297,7 +297,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		// Check if we will collide with another snake
 		var cdata = grid[c.X][c.Y]
 		if IsBody(cdata) || IsHead(cdata) ||
-		   (IsSelf{cdata) && IsTail(cdata)) {
+		   ( IsSelf(cdata) && IsTail(cdata) ) {
 			fmt.Printf("[COLOR=%s, Reject %s: snake body or head]\n", color, move.label);
 			continue
 		}
