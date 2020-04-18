@@ -334,32 +334,39 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		var CanFill func (Coord, map[Coord]bool, int) int
-		CanFill = func (s Coord, filled map[Coord]bool, maxFill int) int {
+		maxFill := len(request.You.Body)
+		filled := make(map[Coord]bool)
+		var FillArea func (Coord) int
+		FillArea = func (s Coord) int {
 			_, alreadyFilled := filled[s]
 			if alreadyFilled { return 0 }
 
 			count := 1
 			filled[s] = true
+
 			west := Translate(s,-1,0)
 			if west.X >= 0 && IsSpace(grid[west.X][west.Y]) {
-				count += CanFill(west, filled, maxFill)
+				count += FillArea(west)
 				if count > maxFill { return count }
 			} 
+
 			north := Translate(s,0,-1)
 			if north.Y >= 0 && IsSpace(grid[north.X][north.Y]) {
-				count += CanFill(north, filled, maxFill)
+				count += FillArea(north)
 				if count > maxFill { return count }
-			} 
+			}
+
 			east := Translate(s,+1,0)
 			if east.X < width && IsSpace(grid[east.X][east.Y]) {
-				count += CanFill(east, filled, maxFill)
+				count += FillArea(east)
 				if count > maxFill { return count }
-			} 
+			}
+
 			south := Translate(s,0,+1)
-			if south.X < height && IsSpace(grid[south.X][south.Y]) {
-				count += CanFill(south, filled, maxFill)
-			} 
+			if south.Y < height && IsSpace(grid[south.X][south.Y]) {
+				count += FillArea(south)
+			}
+
 			return count
 		}
 
@@ -370,9 +377,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		} else if vm[mx].sides == 2 {
 			// determine if we would be entering a closed region whose number of tiles
 			// is smaller than the current snake length
-			rmap := make(map[Coord]bool)
-			maxFill := len(request.You.Body)
-			if CanFill(c,rmap,maxFill) > maxFill {
+			if FillArea(c) > len(request.You.Body) {
 				numvm--
 				fmt.Printf("[COLOR=$s, Reject %s: moving into a trap]\n", color, move.label)
 				continue
