@@ -284,7 +284,12 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		sides int
 		trap bool
 		region int
+		corner bool
 	} 
+
+	IsCorner := func(s Coord) bool {
+		return (s.X == 0 || s.X == width) && (s.Y == 0 || s.Y == height)
+	}
 
 	vm := make([]MoveOption,4)
 	numvm := 0
@@ -316,6 +321,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		vm[mx].risky = IsTail(cdata)
 		vm[mx].trap = false
 		vm[mx].region = 0
+		vm[mx].corner = IsCorner(c)
 
 		for _,adj := range moves {
 			ac := Translate(c,adj.dx,adj.dy)
@@ -513,10 +519,11 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				} else {
 					// if one has food, choose that one
 					// but only if sides < 2 or criticalHealth
-					if vm[0].dist == 0 && (criticalHealth || vm[0].sides < 2) {
+					// note exception is when the cell is one of the corners
+					if vm[0].dist == 0 && (criticalHealth || vm[0].sides < 2 || vm[0].corner) {
 						chosenMove = vm[0].label
 						fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
-					} else if vm[1].dist == 0 && (criticalHealth || vm[1].sides < 2) {
+					} else if vm[1].dist == 0 && (criticalHealth || vm[1].sides < 2 || vm[1].corner) {
 						chosenMove = vm[1].label
 						fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
 					} else {
@@ -592,13 +599,13 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
 			} else {
 				// if one has food, pick that one
-				if vm[0].dist == 0 && !vm[0].risky && (criticalHealth || vm[0].sides < 2) {
+				if vm[0].dist == 0 && !vm[0].risky && (criticalHealth || vm[0].sides < 2 || vm[0].corner) {
 					chosenMove = vm[0].label
 					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
-				} else if vm[1].dist == 0 && !vm[1].risky && (criticalHealth || vm[1].sides < 2) {
+				} else if vm[1].dist == 0 && !vm[1].risky && (criticalHealth || vm[1].sides < 2 || vm[1].corner) {
 					chosenMove = vm[1].label
 					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
-				} else if vm[2].dist == 0 && !vm[2].risky && (criticalHealth || vm[2].sides < 2) {
+				} else if vm[2].dist == 0 && !vm[2].risky && (criticalHealth || vm[2].sides < 2 || vm[2].corner) {
 					chosenMove = vm[2].label
 					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
 				} else {				
