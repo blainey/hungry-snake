@@ -357,6 +357,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lowHealth := request.You.Health < fv[len(fv)-1].dist
+	criticalHealth := request.You.Health < 10
 
 	// Choose among valid moves
 	var chosenMove = "left"
@@ -387,10 +388,11 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("[COLOR=%s, Two moves, one risky.  Choose the other one: %s]\n", color, chosenMove);
 			} else {
 				// if one has food, choose that one
-				if vm[0].dist == 0 {
+				// but only if sides < 2 or criticalHealth
+				if vm[0].dist == 0 && (criticalHealth || vm[0].sides < 2) {
 					chosenMove = vm[0].label
 					fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
-				} else if vm[1].dist == 0 {
+				} else if vm[1].dist == 0 && (criticalHealth || vm[1].sides < 2) {
 					chosenMove = vm[1].label
 					fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
 				} else {
@@ -455,13 +457,13 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				fmt.Printf("[COLOR=%s, Three moves, two risky.  Choose the non-risky one: %s]\n", color, chosenMove);
 			} else {
 				// if one has food, pick that one
-				if vm[0].dist == 0 && !vm[0].risky {
+				if vm[0].dist == 0 && !vm[0].risky && (criticalHealth || vm[0].sides < 2) {
 					chosenMove = vm[0].label
 					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
-				} else if vm[1].dist == 0 && !vm[1].risky {
+				} else if vm[1].dist == 0 && !vm[1].risky && (criticalHealth || vm[1].sides < 2) {
 					chosenMove = vm[1].label
 					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
-				} else if vm[2].dist == 0 && !vm[2].risky {
+				} else if vm[2].dist == 0 && !vm[2].risky && (criticalHealth || vm[2].sides < 2) {
 					chosenMove = vm[2].label
 					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
 				} else {				
