@@ -288,7 +288,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	} 
 
 	IsCorner := func(s Coord) bool {
-		return (s.X == 0 || s.X == width) && (s.Y == 0 || s.Y == height)
+		return (s.X == 0 || s.X == width-1) && (s.Y == 0 || s.Y == height-1)
 	}
 
 	vm := make([]MoveOption,4)
