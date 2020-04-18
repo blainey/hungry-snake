@@ -202,6 +202,9 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	IsSelf := func (c int) bool {
 		return c/3 == 1
 	}
+	IsSpace := func (c int) bool {
+		return c < 3
+	}
 	/*
 	SnakeNo := func (c int) int {
 		return c/3
@@ -331,10 +334,49 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		var CanFill func (Coord, map[Coord]bool, int) int
+		CanFill = func (s Coord, filled map[Coord]bool, maxFill int) int {
+			_, alreadyFilled := filled[s]
+			if alreadyFilled { return 0 }
+
+			count := 1
+			filled[s] = true
+			west := Translate(s,-1,0)
+			if west.X >= 0 && IsSpace(grid[west.X][west.Y]) {
+				count += CanFill(west, filled, maxFill)
+				if count > maxFill { return count }
+			} 
+			north := Translate(s,0,-1)
+			if north.Y >= 0 && IsSpace(grid[north.X][north.Y]) {
+				count += CanFill(north, filled, maxFill)
+				if count > maxFill { return count }
+			} 
+			east := Translate(s,+1,0)
+			if east.X < width && IsSpace(grid[east.X][east.Y]) {
+				count += CanFill(east, filled, maxFill)
+				if count > maxFill { return count }
+			} 
+			south := Translate(s,0,+1)
+			if south.X < height && IsSpace(grid[south.X][south.Y]) {
+				count += CanFill(south, filled, maxFill)
+			} 
+			return count
+		}
+
 		if vm[mx].sides == 3 {
 			numvm--
 			fmt.Printf("[COLOR=%s, Reject %s: moving into trap]\n", color, move.label);
 			continue;
+		} else if vm[mx].sides == 2 {
+			// determine if we would be entering a closed region whose number of tiles
+			// is smaller than the current snake length
+			rmap := make(map[Coord]bool)
+			maxFill := len(request.You.Body)
+			if CanFill(c,rmap,maxFill) > maxFill {
+				numvm--
+				fmt.Printf("[COLOR=$s, Reject %s: moving into a trap]\n", color, move.label)
+				continue
+			}
 		}
 
 		if IsFood(cdata) {
