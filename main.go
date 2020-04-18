@@ -351,6 +351,8 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	lowHealth := request.You.Health < fv[len(fv)-1].dist
+
 	// Choose among valid moves
 	var chosenMove = "left"
 	switch numvm {
@@ -386,21 +388,41 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 					chosenMove = vm[1].label
 					fmt.Printf("[COLOR=%s, Two moves, one has food.  Choose it: %s]\n", color, chosenMove);
 				} else {
-					// if one has fewer sides, choose it
-					if vm[0].sides < vm[1].sides {
-						chosenMove = vm[0].label
-						fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-					} else if vm[1].sides < vm[0].sides {
-						chosenMove = vm[1].label
-						fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
-					} else {
-						// choose the one with smaller dist
+					if (lowHealth) {
+						// chooose the one with smaller dist
 						if vm[0].dist < vm[1].dist {
 							chosenMove = vm[0].label
-							fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
-						} else {
+							fmt.Printf("[COLOR=%s, Two moves, low health, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+						} else if vm[1].dist < vm[0].dist {
 							chosenMove = vm[1].label
-							fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+							fmt.Printf("[COLOR=%s, Two moves, low health, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+						} else {
+							// choose the one with fewer sides
+							if vm[0].sides < vm[1].sides {
+								chosenMove = vm[0].label
+								fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+							} else if vm[1].sides < vm[0].sides {
+								chosenMove = vm[1].label
+								fmt.Printf("[COLOR=%s, Two moves, low health, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+							}
+						}
+					} else {
+						// if one has fewer sides, choose it
+						if vm[0].sides < vm[1].sides {
+							chosenMove = vm[0].label
+							fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+						} else if vm[1].sides < vm[0].sides {
+							chosenMove = vm[1].label
+							fmt.Printf("[COLOR=%s, Two moves, one has fewer sides.  Choose it: %s]\n", color, chosenMove);
+						} else {
+							// choose the one with smaller dist
+							if vm[0].dist < vm[1].dist {
+								chosenMove = vm[0].label
+								fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+							} else {
+								chosenMove = vm[1].label
+								fmt.Printf("[COLOR=%s, Two moves, one has lower dist.  Choose it: %s]\n", color, chosenMove);
+							}
 						}
 					}
 				}
@@ -436,27 +458,45 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 				} else if vm[2].dist == 0 && !vm[2].risky {
 					chosenMove = vm[2].label
 					fmt.Printf("[COLOR=%s, Three moves, one has food.  Choose it: %s]\n", color, chosenMove);
-				} else {
-					// if all have same number of sides, then choose the non-risky one with smallest dist
-					if vm[0].sides == vm[1].sides && vm[1].sides == vm[2].sides {
-						least := 0
-						if vm[0].risky {
-							least = 1
+				} else {				
+					if (lowHealth) {
+						// if dist is all the same, then choose the non-risky one with fewest sides
+						if vm[0].dist == vm[1].dist && vm[1].dist == vm[2].dist {
+							least := 0
+							if vm[0].risky { least = 1 }
+							if vm[1].sides < vm[least].sides && !vm[1].risky { least = 1 }
+							if vm[2].sides < vm[least].sides && !vm[2].risky { least = 2 }
+							chosenMove = vm[least].label
+							fmt.Printf("[COLOR=%s, Three moves, low health, pick non-risky one with least sides: %s]\n", color, chosenMove);
+						} else {
+							// choose the non-risky one with the least dist
+							least := 0
+							if vm[0].risky { least = 1 }
+							if vm[1].dist < vm[least].dist && !vm[1].risky { least = 1 }
+							if vm[2].dist < vm[least].dist && !vm[2].risky { least = 2 }
+							chosenMove = vm[least].label
+							fmt.Printf("[COLOR=%s, Three moves, low health, pick non-risky one with least dist: %s]\n", color, chosenMove);
 						}
-						if (vm[1].dist < vm[least].dist && !vm[1].risky) { least = 1 }
-						if (vm[2].dist < vm[least].dist && !vm[2].risky) { least = 2 }
-						chosenMove = vm[least].label
-						fmt.Printf("[COLOR=%s, Three moves, pick non-risky one with least dist: %s]\n", color, chosenMove);
 					} else {
-						// choose the non-risky one with least number of sides
-						least := 0
-						if vm[0].risky {
-							least = 1
+						// if all have same number of sides, then choose the non-risky one with smallest dist
+						if vm[0].sides == vm[1].sides && vm[1].sides == vm[2].sides {
+							least := 0
+							if vm[0].risky { least = 1 }
+							if (vm[1].dist < vm[least].dist && !vm[1].risky) { least = 1 }
+							if (vm[2].dist < vm[least].dist && !vm[2].risky) { least = 2 }
+							chosenMove = vm[least].label
+							fmt.Printf("[COLOR=%s, Three moves, pick non-risky one with least dist: %s]\n", color, chosenMove);
+						} else {
+							// choose the non-risky one with least number of sides
+							least := 0
+							if vm[0].risky {
+								least = 1
+							}
+							if (vm[1].sides < vm[least].sides && !vm[1].risky) { least = 1 }
+							if (vm[2].sides < vm[least].sides && !vm[2].risky) { least = 2 }
+							chosenMove = vm[least].label
+							fmt.Printf("[COLOR=%s, Three moves, pick non-risky one with least sides: %s]\n", color, chosenMove);
 						}
-						if (vm[1].sides < vm[least].sides && !vm[1].risky) { least = 1 }
-						if (vm[2].sides < vm[least].sides && !vm[2].risky) { least = 2 }
-						chosenMove = vm[least].label
-						fmt.Printf("[COLOR=%s, Three moves, pick non-risky one with least sides: %s]\n", color, chosenMove);
 					}
 				}
 			}
