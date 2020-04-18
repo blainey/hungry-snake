@@ -308,7 +308,7 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 		numvm++
 		vm[mx].label = move.label
 		vm[mx].sides = 0
-		vm[mx].risky = false
+		vm[mx].risky = IsTail(cdata)
 
 		for _,adj := range moves {
 			ac := Translate(c,adj.dx,adj.dy)
