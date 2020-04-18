@@ -286,6 +286,8 @@ func HandleMove(w http.ResponseWriter, r *http.Request) {
 	for _,move := range moves {
 		var c = Translate(myHead,move.dx,move.dy)
 
+		fmt.Printf("[COLOR=%s, Consider %s]\n", color, move.label);
+
 		// Check if at boundary
 		if c.X < 0 || c.X >= width || c.Y < 0 || c.Y >= height {
 			fmt.Printf("[COLOR=%s, Reject %s: boundary]\n", color, move.label);
